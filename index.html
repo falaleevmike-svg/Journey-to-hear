@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Путешествие к сердцу</title>
+    <base href="/Journey-to-hear/">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-overlay"></div>
+    </div>
+
+    <!-- Engine -->
+    <script src="js/engine/AssetLoader.js"></script>
+    <script src="js/engine/InputHandler.js"></script>
+    <script src="js/utils/Utils.js"></script>
+    <script src="js/engine/Physics.js"></script>
+    <script src="js/engine/Renderer.js"></script>
+    <script src="js/engine/GameLoop.js"></script>
+
+    <!-- Utils -->
+
+    <!-- Entities -->
+    <script src="js/entities/PlayerPair.js"></script>
+    <script src="js/entities/Platform.js"></script>
+    <script src="js/entities/Collectible.js"></script>
+    <script src="js/entities/NPC.js"></script>
+    <script src="js/entities/Obstacle.js"></script>
+
+    <!-- Levels -->
+    <script src="js/levels/data/level1_dvfu.js"></script>
+    <script src="js/levels/Level.js"></script>
+    <script src="js/levels/LevelManager.js"></script>
+
+    <!-- UI -->
+    <script src="js/ui/UIManager.js"></script>
+    <script src="js/ui/Menu.js"></script>
+    <script src="js/ui/Dialog.js"></script>
+    <script src="js/ui/PhotoAlbum.js"></script>
+
+    <!-- Scenes -->
+    <script src="js/scenes/Scene.js"></script>
+    <script src="js/scenes/LoadingScene.js"></script>
+    <script src="js/scenes/MenuScene.js"></script>
+    <script src="js/scenes/GameScene.js"></script>
+    <script src="js/scenes/Cutscene.js"></script>
+
+    <!-- Main -->
+    <script src="js/main.js"></script>
+</body>
+</html>
