@@ -16,7 +16,7 @@
     <!-- Utils (сначала, т.к. используется везде) -->
     <script src="js/utils/Utils.js"></script>
 
-    <!-- Scene.js ДО всех, т.к. используется в AssetLoader -->
+    <!-- Scene.js (базовый класс для всех сцен) -->
     <script src="js/scenes/Scene.js"></script>
 
     <!-- Engine (базовые системы) -->
@@ -38,13 +38,13 @@
     <script src="js/levels/Level.js"></script>
     <script src="js/levels/LevelManager.js"></script>
 
-    <!-- UI -->
+    <!-- UI (ДО сцен, т.к. сцены используют UI) -->
     <script src="js/ui/UIManager.js"></script>
     <script src="js/ui/Menu.js"></script>
     <script src="js/ui/Dialog.js"></script>
     <script src="js/ui/PhotoAlbum.js"></script>
 
-    <!-- Scenes (остальные сцены) -->
+    <!-- Scenes (после UI, т.к. используют Menu, PhotoAlbum и т.д.) -->
     <script src="js/scenes/LoadingScene.js"></script>
     <script src="js/scenes/MenuScene.js"></script>
     <script src="js/scenes/GameScene.js"></script>
@@ -53,5 +53,4 @@
     <!-- Main (последний) -->
     <script src="js/main.js"></script>
 </body>
-</html>
 </html>
