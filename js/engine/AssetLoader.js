@@ -1,184 +1,108 @@
 /**
- * AssetLoader - загрузчик игровых ассетов
- * Поддерживает спрайты, аудио, данные уровней
- * Загрузка выполняется асинхронно с отслеживанием прогресса
+ * LoadingScene - сцена загрузки ресурсов
  */
 
-class AssetLoader {
-    constructor() {
-        this.assets = new Map();
-        this.loaded = 0;
-        this.total = 0;
-        this.onProgress = null;
-        this.onComplete = null;
+class LoadingScene extends Scene {
+    constructor(game) {
+        super(game);
+        this.progress = 0;
+        this.loadingText = 'Загрузка...';
+    }
+
+    enter() {
+        super.enter();
+        this.progress = 0;
+
+        // Создание загрузочного экрана
+        const container = document.getElementById('ui-overlay');
+        container.innerHTML = `
+            <div class="loading-screen" id="loading-screen">
+                <div class="loading-text" id="loading-text">Загрузка...</div>
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loading-progress"></div>
+                </div>
+                <div style="color: #888; margin-top: 10px; font-size: 12px;" id="loading-detail">Инициализация...</div>
+            </div>
+        `;
+
+        // Начало загрузки ассетов
+        this._loadAssets();
     }
 
     /**
-     * Загрузка изображения
-     * @param {string} key - ключ для доступа к ассету
-     * @param {string} src - URL изображения
-     * @returns {Promise<HTMLImageElement>}
-     */
-    loadImage(key, src) {
-        this.total++;
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                this.assets.set(key, img);
-                this.loaded++;
-                this._updateProgress();
-                resolve(img);
-            };
-            img.onerror = () => {
-                console.warn(`Не удалось загрузить изображение: ${src}`);
-                // Создаём заглушку
-                const placeholder = Utils.createPlaceholderSprite(32, 32);
-                this.assets.set(key, placeholder);
-                this.loaded++;
-                this._updateProgress();
-                resolve(placeholder);
-            };
-            img.src = src;
-        });
-    }
-
-    /**
-     * Загрузка аудио
-     * @param {string} key
-     * @param {string} src
-     * @returns {Promise<HTMLAudioElement>}
-     */
-    loadAudio(key, src) {
-        this.total++;
-        return new Promise((resolve, reject) => {
-            const audio = new Audio();
-            audio.oncanplaythrough = () => {
-                this.assets.set(key, audio);
-                this.loaded++;
-                this._updateProgress();
-                resolve(audio);
-            };
-            audio.onerror = () => {
-                console.warn(`Не удалось загрузить аудио: ${src}`);
-                this.loaded++;
-                this._updateProgress();
-                resolve(null);
-            };
-            audio.src = src;
-            audio.load();
-        });
-    }
-
-    /**
-     * Загрузка JSON данных
-     * @param {string} key
-     * @param {string} src
-     * @returns {Promise<Object>}
-     */
-    async loadJSON(key, src) {
-        this.total++;
-        try {
-            const response = await fetch(src);
-            const data = await response.json();
-            this.assets.set(key, data);
-            this.loaded++;
-            this._updateProgress();
-            return data;
-        } catch (e) {
-            console.warn(`Не удалось загрузить JSON: ${src}`);
-            this.loaded++;
-            this._updateProgress();
-            return null;
-        }
-    }
-
-    /**
-     * Создание программного спрайта (заглушка)
-     * @param {string} key
-     * @param {number} width
-     * @param {number} height
-     * @param {string} color
-     */
-    createSprite(key, width, height, color) {
-        const sprite = Utils.createPlaceholderSprite(width, height, color);
-        this.assets.set(key, sprite);
-    }
-
-    /**
-     * Получение загруженного ассета
-     * @param {string} key
-     * @returns {*}
-     */
-    get(key) {
-        return this.assets.get(key);
-    }
-
-    /**
-     * Проверка, загружен ли ассет
-     * @param {string} key
-     * @returns {boolean}
-     */
-    has(key) {
-        return this.assets.has(key);
-    }
-
-    /**
-     * Обновление прогресса загрузки
+     * Загрузка ассетов
      * @private
      */
-    _updateProgress() {
-        const progress = this.total > 0 ? (this.loaded / this.total) : 0;
-        if (this.onProgress) {
-            this.onProgress(progress, this.loaded, this.total);
+    async _loadAssets() {
+        const loader = this.game.assetLoader;
+
+        loader.onProgress = (progress, loaded, total) => {
+            this.progress = progress;
+            this._updateUI(progress, loaded, total);
+        };
+
+        loader.onComplete = () => {
+            setTimeout(() => {
+                this.game.switchScene('menu');
+            }, 500);
+        };
+
+        // Создание заглушек для спрайтов
+        loader.createPlaceholderAssets();
+
+        // Имитация загрузки
+        loader.total = 10;
+        for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, 200));
+            loader.loaded = i + 1;
+            loader.onProgress(loader.loaded / loader.total, loader.loaded, loader.total);
         }
-        if (this.loaded >= this.total && this.onComplete) {
-            this.onComplete();
+
+        // ВАЖНО: вызываем onComplete после завершения цикла
+        if (loader.onComplete) {
+            loader.onComplete();
         }
     }
 
     /**
-     * Сброс загрузчика
+     * Обновление UI загрузки
+     * @private
      */
-    reset() {
-        this.loaded = 0;
-        this.total = 0;
+    _updateUI(progress, loaded, total) {
+        const progressBar = document.getElementById('loading-progress');
+        const detail = document.getElementById('loading-detail');
+
+        if (progressBar) {
+            progressBar.style.width = `${progress * 100}%`;
+        }
+
+        if (detail) {
+            const texts = [
+                'Загрузка спрайтов...',
+                'Загрузка звуков...',
+                'Загрузка музыки...',
+                'Подготовка уровней...',
+                'Инициализация физики...',
+                'Почти готово...'
+            ];
+            const textIndex = Math.floor(progress * texts.length);
+            detail.textContent = texts[Math.min(textIndex, texts.length - 1)];
+        }
     }
 
-    /**
-     * Создание всех необходимых заглушек для спрайтов
-     * Вызывается при отсутствии реальных ассетов
-     */
-    createPlaceholderAssets() {
-        // Спрайты персонажей
-        this.createSprite('player_idle', 64, 64, '#8B4513');
-        this.createSprite('player_run', 64, 64, '#A0522D');
-        this.createSprite('player_jump', 64, 64, '#CD853F');
-        this.createSprite('player_fall', 64, 64, '#D2691E');
+    exit() {
+        super.exit();
+        const container = document.getElementById('ui-overlay');
+        container.innerHTML = '';
+    }
 
-        // Тайлы
-        this.createSprite('tile_ground', 32, 32, '#5a5a7a');
-        this.createSprite('tile_platform', 32, 32, '#7a7a9a');
-        this.createSprite('tile_wall', 32, 32, '#4a4a6a');
-        this.createSprite('tile_roof', 32, 32, '#6a6a8a');
+    update(deltaTime) {
+        // Анимация загрузочного экрана
+    }
 
-        // Коллекционные предметы
-        this.createSprite('memory_photo', 32, 32, '#FFD700');
-        this.createSprite('checkpoint', 48, 48, '#FF69B4');
-
-        // NPC и объекты
-        this.createSprite('npc_kireev', 48, 64, '#808080');
-        this.createSprite('npc_babka', 48, 64, '#8B4513');
-        this.createSprite('obstacle_shuttle', 64, 32, '#FFFFFF');
-        this.createSprite('obstacle_book', 32, 32, '#4169E1');
-        this.createSprite('obstacle_seagull', 32, 32, '#FFFFFF');
-
-        // UI
-        this.createSprite('ui_heart', 32, 32, '#FF6B8A');
-        this.createSprite('ui_heart_empty', 32, 32, '#666666');
-
-        // Фоны
-        this.createSprite('bg_dvfu_sky', 800, 600, '#87CEEB');
-        this.createSprite('bg_dvfu_buildings', 800, 300, '#4682B4');
-        this.createSprite('bg_dvfu_sea', 800, 200, '#1E90FF');
+    draw(renderer, deltaTime) {
+        // Очистка canvas
+        renderer.ctx.fillStyle = '#0f0f23';
+        renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
     }
 }
