@@ -47,7 +47,7 @@ class LoadingScene extends Scene {
             }, 500);
         };
 
-        // Создание заглушек для спрайтов (в реальности здесь загрузка из файлов)
+        // Создание заглушек для спрайтов
         loader.createPlaceholderAssets();
 
         // Имитация загрузки
@@ -55,8 +55,12 @@ class LoadingScene extends Scene {
         for (let i = 0; i < 10; i++) {
             await new Promise(r => setTimeout(r, 200));
             loader.loaded = i + 1;
-            loader.loaded = i + 1;
             loader.onProgress(loader.loaded / loader.total, loader.loaded, loader.total);
+        }
+
+        // ВАЖНО: вызываем onComplete после завершения цикла
+        if (loader.onComplete) {
+            loader.onComplete();
         }
     }
 
