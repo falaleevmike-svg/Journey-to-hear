@@ -3,6 +3,7 @@
  * Загрузка, переключение, сохранение прогресса
  */
 
+import { LEVEL1_DVFU } from './data/level1_dvfu.js';
 class LevelManager {
     constructor(assetLoader) {
         this.assetLoader = assetLoader;
