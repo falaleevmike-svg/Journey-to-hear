@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Путешествие к сердцу</title>
     <link rel="stylesheet" href="css/style.css">
+<base target="_blank">
 </head>
 <body>
     <div id="game-container">
@@ -20,8 +21,6 @@
     <script src="js/engine/Renderer.js"></script>
     <script src="js/engine/GameLoop.js"></script>
 
-    <!-- Utils -->
-
     <!-- Entities -->
     <script src="js/entities/PlayerPair.js"></script>
     <script src="js/entities/Platform.js"></script>
@@ -30,9 +29,10 @@
     <script src="js/entities/Obstacle.js"></script>
 
     <!-- Levels -->
-    <script type="module" src="js/levels/data/level1_dvfu.js"></script>
+    <!-- СНАЧАЛА данные уровня (глобальная переменная), ПОТОМ LevelManager -->
+    <script src="js/levels/data/level1_dvfu.js"></script>
     <script src="js/levels/Level.js"></script>
-    <script type="module" src="js/levels/LevelManager.js"></script>
+    <script src="js/levels/LevelManager.js"></script>
 
     <!-- UI -->
     <script src="js/ui/UIManager.js"></script>
@@ -48,6 +48,7 @@
     <script src="js/scenes/Cutscene.js"></script>
 
     <!-- Main -->
-    <script type="module" src="js/main.js"></script>
+    <script src="js/main.js"></script>
 </body>
+</html>
 </html>
