@@ -5,8 +5,8 @@ const LEVEL1_DVFU = {
 
     // Стартовая позиция игроков (парень и девушка)
     startPositions: {
-        player1: { x: 100, y: 300 },
-        player2: { x: 140, y: 300 }
+        player1: { x: 120, y: 350 },
+        player2: { x: 140, y: 350 }
     },
 
     // Размеры уровня
