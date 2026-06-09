@@ -13,10 +13,12 @@
         <div id="ui-overlay"></div>
     </div>
 
-    <!-- Engine -->
+    <!-- Utils (сначала, т.к. используется везде) -->
+    <script src="js/utils/Utils.js"></script>
+
+    <!-- Engine (базовые системы) -->
     <script src="js/engine/AssetLoader.js"></script>
     <script src="js/engine/InputHandler.js"></script>
-    <script src="js/utils/Utils.js"></script>
     <script src="js/engine/Physics.js"></script>
     <script src="js/engine/Renderer.js"></script>
     <script src="js/engine/GameLoop.js"></script>
@@ -28,8 +30,7 @@
     <script src="js/entities/NPC.js"></script>
     <script src="js/entities/Obstacle.js"></script>
 
-    <!-- Levels -->
-    <!-- СНАЧАЛА данные уровня (глобальная переменная), ПОТОМ LevelManager -->
+    <!-- Levels (данные уровня ДО LevelManager) -->
     <script src="js/levels/data/level1_dvfu.js"></script>
     <script src="js/levels/Level.js"></script>
     <script src="js/levels/LevelManager.js"></script>
@@ -40,15 +41,14 @@
     <script src="js/ui/Dialog.js"></script>
     <script src="js/ui/PhotoAlbum.js"></script>
 
-    <!-- Scenes -->
+    <!-- Scenes (Scene.js ДО остальных сцен) -->
     <script src="js/scenes/Scene.js"></script>
     <script src="js/scenes/LoadingScene.js"></script>
     <script src="js/scenes/MenuScene.js"></script>
     <script src="js/scenes/GameScene.js"></script>
     <script src="js/scenes/Cutscene.js"></script>
 
-    <!-- Main -->
+    <!-- Main (последний) -->
     <script src="js/main.js"></script>
 </body>
-</html>
 </html>
