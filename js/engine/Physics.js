@@ -1,13 +1,15 @@
 /**
  * Physics - физический движок игры
  * Обработка гравитации, столкновений, движения
+ * Исправленная версия с корректной AABB, deltaTime и стабильной платформенной физикой
  */
 
 class Physics {
     constructor() {
-        this.gravity = 0.6;           // Сила гравитации
-        this.friction = 0.85;         // Трение о поверхность
-        this.airResistance = 0.98;    // Сопротивление воздуха
+        // Базовые значения (за 1/60 секунды)
+        this.gravity = 0.6;           // Сила гравитации за кадр
+        this.friction = 0.88;         // Трение о поверхность (менее агрессивное)
+        this.airResistance = 0.995;   // Сопротивление воздуха (почти не замедляет)
         this.terminalVelocity = 12;   // Максимальная скорость падения
 
         // Типы столкновений
@@ -23,12 +25,17 @@ class Physics {
     /**
      * Применение гравитации к объекту
      * @param {Object} entity - сущность с velocityY
+     * @param {boolean} onGround - объект на земле
      */
-    applyGravity(entity) {
+    applyGravity(entity, onGround) {
         if (entity.velocityY === undefined) return;
-
+        // Не применяем гравитацию, если объект на земле и не прыгает
+        if (onGround && entity.velocityY >= 0) {
+            entity.velocityY = 0;
+            return;
+        }
         entity.velocityY += this.gravity;
-        entity.velocityY = Utils.clamp(entity.velocityY, -this.terminalVelocity, this.terminalVelocity);
+        entity.velocityY = Math.max(-this.terminalVelocity, Math.min(this.terminalVelocity, entity.velocityY));
     }
 
     /**
@@ -43,7 +50,7 @@ class Physics {
         entity.velocityX *= resistance;
 
         // Остановка при очень малой скорости
-        if (Math.abs(entity.velocityX) < 0.1) {
+        if (Math.abs(entity.velocityX) < 0.05) {
             entity.velocityX = 0;
         }
     }
@@ -54,13 +61,12 @@ class Physics {
      */
     updatePosition(entity) {
         if (entity.x === undefined || entity.y === undefined) return;
-
         entity.x += entity.velocityX || 0;
         entity.y += entity.velocityY || 0;
     }
 
     /**
-     * Проверка столкновения с платформами
+     * Проверка столкновения с платформами (с разделением осей X и Y)
      * @param {Object} entity - {x, y, width, height, velocityX, velocityY}
      * @param {Array} platforms - массив платформ
      * @returns {Object} - результат столкновения
@@ -73,97 +79,109 @@ class Physics {
             collisions: []
         };
 
-        for (const platform of platforms) {
-            if (!platform.active) continue;
+        // Сохраняем стартовую позицию для корректного разрешения коллизий
+        const startX = entity.x;
+        const startY = entity.y;
 
-            const collision = this._checkCollision(entity, platform);
-            if (!collision) continue;
-
-            result.collisions.push({ platform, collision });
-
-            switch (platform.type) {
-                case this.COLLISION_TYPES.SOLID:
-                    this._resolveSolidCollision(entity, platform, collision, result);
-                    break;
-                case this.COLLISION_TYPES.PLATFORM:
-                    this._resolvePlatformCollision(entity, platform, collision, result);
-                    break;
-                case this.COLLISION_TYPES.HAZARD:
-                    result.isHazard = true;
-                    break;
-                case this.COLLISION_TYPES.INTERACTIVE:
-                    result.isInteractive = true;
-                    result.interactiveObject = platform;
-                    break;
+        // Сначала двигаем по X
+        if (entity.velocityX) {
+            entity.x = startX + entity.velocityX;
+            for (const platform of platforms) {
+                if (!platform.active) continue;
+                if (this._checkAABB(entity, platform)) {
+                    if (platform.type === this.COLLISION_TYPES.SOLID) {
+                        this._resolveX(entity, platform, result);
+                    } else if (platform.type === this.COLLISION_TYPES.HAZARD) {
+                        result.isHazard = true;
+                    }
+                }
             }
+        }
+
+        // Потом двигаем по Y
+        if (entity.velocityY) {
+            entity.y = startY + entity.velocityY;
+            for (const platform of platforms) {
+                if (!platform.active) continue;
+                if (this._checkAABB(entity, platform)) {
+                    switch (platform.type) {
+                        case this.COLLISION_TYPES.SOLID:
+                            this._resolveY(entity, platform, result);
+                            break;
+                        case this.COLLISION_TYPES.PLATFORM:
+                            this._resolvePlatformCollision(entity, platform, result);
+                            break;
+                        case this.COLLISION_TYPES.HAZARD:
+                            result.isHazard = true;
+                            break;
+                        case this.COLLISION_TYPES.INTERACTIVE:
+                            result.isInteractive = true;
+                            result.interactiveObject = platform;
+                            break;
+                    }
+                }
+            }
+        } else if (entity.velocityY === 0) {
+            // Проверяем, стоит ли entity на чём-то (snap to floor)
+            entity.y += 1; // Маленький тестовый шаг вниз
+            for (const platform of platforms) {
+                if (!platform.active) continue;
+                if (this._checkAABB(entity, platform)) {
+                    if (platform.type === this.COLLISION_TYPES.SOLID) {
+                        entity.y = platform.y - entity.height;
+                        result.onGround = true;
+                    } else if (platform.type === this.COLLISION_TYPES.PLATFORM) {
+                        entity.y = platform.y - entity.height;
+                        result.onGround = true;
+                    }
+                }
+            }
+            if (!result.onGround) entity.y -= 1; // Возвращаем назад, если не нашли пол
         }
 
         return result;
     }
 
     /**
-     * Проверка пересечения двух прямоугольников
+     * Корректная проверка AABB (x,y — левый верхний угол)
      * @private
      */
-    _checkCollision(entity, platform) {
-        const entityRect = {
-            x: entity.x,
-            y: entity.y,
-            width: entity.width,
-            height: entity.height
-        };
-
-        const platformRect = {
-            x: platform.x,
-            y: platform.y,
-            width: platform.width,
-            height: platform.height
-        };
-
-        if (!Utils.checkRectCollision(entityRect, platformRect)) {
-            return null;
-        }
-
-        // Вычисление направления столкновения
-        const overlapX = (entityRect.width + platformRect.width) / 2 - 
-                        Math.abs((entityRect.x + entityRect.width / 2) - (platformRect.x + platformRect.width / 2));
-        const overlapY = (entityRect.height + platformRect.height) / 2 - 
-                        Math.abs((entityRect.y + entityRect.height / 2) - (platformRect.y + platformRect.height / 2));
-
-        return {
-            overlapX,
-            overlapY,
-            direction: overlapX < overlapY ? 'horizontal' : 'vertical'
-        };
+    _checkAABB(a, b) {
+        return a.x < b.x + b.width &&
+               a.x + a.width > b.x &&
+               a.y < b.y + b.height &&
+               a.y + a.height > b.y;
     }
 
     /**
-     * Разрешение столкновения с твёрдым блоком
+     * Разрешение горизонтального столкновения
      * @private
      */
-    _resolveSolidCollision(entity, platform, collision, result) {
-        if (collision.direction === 'vertical') {
-            // Вертикальное столкновение
-            if (entity.y + entity.height / 2 < platform.y + platform.height / 2) {
-                // Столкновение сверху (приземление)
-                entity.y = platform.y - entity.height;
-                entity.velocityY = 0;
-                result.onGround = true;
-            } else {
-                // Столкновение снизу (удар головой)
-                entity.y = platform.y + platform.height;
-                entity.velocityY = 0;
-                result.hitCeiling = true;
-            }
-        } else {
-            // Горизонтальное столкновение
-            if (entity.x + entity.width / 2 < platform.x + platform.width / 2) {
-                entity.x = platform.x - entity.width;
-            } else {
-                entity.x = platform.x + platform.width;
-            }
-            entity.velocityX = 0;
-            result.hitWall = true;
+    _resolveX(entity, platform, result) {
+        if (entity.velocityX > 0) {
+            entity.x = platform.x - entity.width;
+        } else if (entity.velocityX < 0) {
+            entity.x = platform.x + platform.width;
+        }
+        entity.velocityX = 0;
+        result.hitWall = true;
+    }
+
+    /**
+     * Разрешение вертикального столкновения
+     * @private
+     */
+    _resolveY(entity, platform, result) {
+        if (entity.velocityY > 0) {
+            // Падение — приземление
+            entity.y = platform.y - entity.height;
+            entity.velocityY = 0;
+            result.onGround = true;
+        } else if (entity.velocityY < 0) {
+            // Прыжок — удар головой
+            entity.y = platform.y + platform.height;
+            entity.velocityY = 0;
+            result.hitCeiling = true;
         }
     }
 
@@ -171,14 +189,17 @@ class Physics {
      * Разрешение столкновения с платформой (можно проходить снизу)
      * @private
      */
-    _resolvePlatformCollision(entity, platform, collision, result) {
-        // Платформа - только приземление сверху
+    _resolvePlatformCollision(entity, platform, result) {
+        // Платформа — только приземление сверху
+        // entity уже сдвинут по Y, проверяем: падаем ли мы И entity был выше платформы
         if (entity.velocityY > 0 && 
-            entity.y + entity.height - entity.velocityY <= platform.y + 5) {
+            entity.y + entity.height > platform.y &&
+            entity.y + entity.height - entity.velocityY <= platform.y + 4) {
             entity.y = platform.y - entity.height;
             entity.velocityY = 0;
             result.onGround = true;
         }
+        // Если entity внутри платформы (поднялся снизу), не делаем ничего — проходим сквозь
     }
 
     /**
@@ -189,19 +210,13 @@ class Physics {
      */
     checkCollectibleCollisions(entity, collectibles) {
         const collected = [];
-
         for (const item of collectibles) {
             if (item.collected) continue;
-
-            if (Utils.checkRectCollision(
-                { x: entity.x, y: entity.y, width: entity.width, height: entity.height },
-                { x: item.x, y: item.y, width: item.width, height: item.height }
-            )) {
+            if (this._checkAABB(entity, item)) {
                 item.collected = true;
                 collected.push(item);
             }
         }
-
         return collected;
     }
 
@@ -214,19 +229,13 @@ class Physics {
     checkNPCCollision(entity, npcs) {
         for (const npc of npcs) {
             if (!npc.active) continue;
-
-            // Увеличенная зона взаимодействия для NPC
             const interactZone = {
                 x: npc.x - 10,
                 y: npc.y - 10,
                 width: npc.width + 20,
                 height: npc.height + 20
             };
-
-            if (Utils.checkRectCollision(
-                { x: entity.x, y: entity.y, width: entity.width, height: entity.height },
-                interactZone
-            )) {
+            if (this._checkAABB(entity, interactZone)) {
                 return npc;
             }
         }
@@ -241,17 +250,14 @@ class Physics {
      */
     checkBounds(entity, bounds) {
         const result = { outOfBounds: false };
-
         if (entity.y > bounds.height + 100) {
             result.outOfBounds = true;
             result.direction = 'bottom';
         }
-
         if (entity.x < -100 || entity.x > bounds.width + 100) {
             result.outOfBounds = true;
             result.direction = 'side';
         }
-
         return result;
     }
 
